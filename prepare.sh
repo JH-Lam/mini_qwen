@@ -1,4 +1,4 @@
-# # 下载模型 必要的文件已在项目中，可忽略
+# # 下载模型 必要的文件已在项目中，可忽略 -- note： model.safetensors即权重文件没有下载，不清楚是否训练时自动创建，或是否需要基于其进行 再训练 todo
 # cd models
 # git lfs install
 # git clone https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct

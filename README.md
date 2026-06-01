@@ -1,4 +1,6 @@
 # mini_qwen
+raw site: https://zhuanlan.zhihu.com/p/19353252686
+> clone from https://github.com/JH-Lam/mini_qwen forked from https://github.com/qiufengqijun/mini_qwen at Apr 24,26
 
 ## 目录
 - [简介](#简介)
@@ -13,7 +15,7 @@
 
 ## 简介
 mini_qwen是一个从头开始训练的1B参数的大型语言模型(LLM)项目，包括预训练(PT)、微调(SFT)和直接偏好优化(DPO)3个部分。其中预训练和微调仅需要12G显存即可训练，直接偏好优化仅需要14G显存即可训练，这意味着使用T4显卡就可以开始你的训练之旅。  
-mini_qwen是以Qwen2.5-0.5B-Instruct模型为基础，通过扩充模型隐藏状态层数、隐藏状态维度和注意力头数，增加参数量到1B，并进行参数随机初始化。训练数据使用北京智源人工智能研究院的预训练(16B token)、微调(9M 条)和偏好数据(60K 条)，使用flash_attention_2进行加速，使用deepspeed在6张H800上训练25h(pt 1epoch)、43h(sft 3epoch)、1h(dpo 3epoch)。  
+mini_qwen是以Qwen2.5-0.5B-Instruct模型为基础，通过扩充模型隐藏状态层数、隐藏状态维度和注意力头数，增加参数量到1B，并进行参数随机初始化。训练数据使用北京智源人工智能研究院的预训练(16B token - 8.9M?)、微调(9M 条)和偏好数据(60K 条)，使用flash_attention_2进行加速，使用deepspeed在6张H800上训练25h(pt 1epoch)、43h(sft 3epoch)、1h(dpo 3epoch)。  
 这是一次非常有趣且有价值的尝试，在整个过程中，本项目探究了尺度定律(scaling law)、复读机现象与微调阶段的知识注入，也解决了很多bug。本项目将尽可能详细地介绍整个训练过程，也欢迎交流讨论。
 
 本项目主要参考以下项目和资料：  

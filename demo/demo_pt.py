@@ -8,7 +8,7 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     DataCollatorForLanguageModeling,
-    Trainer,
+    Trainer,  # -so this Trainer is different from the one 'SFTTrainer' in trl lib(see @demo_sft.py )
     TrainingArguments,
 )
 
@@ -18,7 +18,7 @@ from transformers import (
 # 加载分词器与模型
 output_path = "demo_results/pt"
 model_path = "models/Qwen2.5-0.5B-Instruct"
-config = AutoConfig.from_pretrained(model_path)
+config = AutoConfig.from_pretrained(model_path) #-so all 'model,tokenizer and config' can be loaded from model's path
 # 调整模型配置
 config.num_attention_heads = 16
 config.num_key_value_heads = 4
@@ -127,7 +127,6 @@ trainer = Trainer(
 trainer.train()
 trainer.save_model()  # 保存模型
 tokenizer.save_pretrained(output_path)  # 保存分词器
-
 
 def plot_loss(save_directory, log_history):
     """绘制训练损失曲线并保存图像"""

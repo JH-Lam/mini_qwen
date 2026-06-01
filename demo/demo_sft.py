@@ -11,9 +11,9 @@ from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 # 加载分词器与模型
 output_path = "demo_results/sft"
 model_path = "demo_results/pt"
+# - note this model can also be loaded from FastLanguageModel from unsloth lib(see @llm-practice also, which involves 'load_in_4bit' arguemnt too
 model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
 tokenizer = AutoTokenizer.from_pretrained(model_path)
-
 
 def find_files(dirs):
     files = []
@@ -26,7 +26,6 @@ def find_files(dirs):
                     files.append(full_path)
     return files
 
-
 # 加载数据集并进行预处理
 directories = ["7M","Gen"]
 data_files = find_files(directories)
@@ -34,7 +33,6 @@ dataset = load_dataset("parquet", data_files=data_files, split="train", columns=
 dataset = dataset.shuffle(seed=42)
 # dataset = dataset.shuffle(seed=42).select(range(20))
 # print(dataset[:3]);input()
-
 
 def formatting_prompts_func(example):
     output_texts = []
@@ -49,7 +47,6 @@ def formatting_prompts_func(example):
         text = f"<|im_start|>user\n{human_text}<|im_end|>\n<|im_start|>assistant\n{gpt_text}<|im_end|>"
         output_texts.append(text)
     return output_texts
-
 
 # 数据整理器
 response_template = "<|im_start|>assistant\n"
@@ -86,7 +83,7 @@ trainer = SFTTrainer(
     dataset_batch_size=5000,
 )
 
-# 开始训练
+# 开始训练 - these mothods will be called after training in @llm-practice, while 'model.save_pretrained()' something should call after training to combine old and adaptor weights into one
 trainer.train()
 trainer.save_model()  # 保存模型
 tokenizer.save_pretrained(output_path)  # 保存分词器
