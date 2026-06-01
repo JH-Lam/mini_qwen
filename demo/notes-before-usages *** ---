@@ -1,0 +1,4 @@
+commands to run py under 'demo':
+ python demo/demo_xx.py
+it's wrong usage:
+ cd demo then run 'python demo_xx.py'
