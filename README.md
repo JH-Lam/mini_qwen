@@ -2,6 +2,10 @@
 raw site: https://zhuanlan.zhihu.com/p/19353252686
 > clone from https://github.com/JH-Lam/mini_qwen forked from https://github.com/qiufengqijun/mini_qwen at Apr 24,26
 
+#### python training frameworks used for config and model:
+- pt: transformers
+- sft/dpo: trl
+
 ## 目录
 - [简介](#简介)
 - [快速开始](#快速开始)
@@ -50,6 +54,7 @@ cd mini_qwen
 python demo/demo_pt.py
 python demo/demo_sft.py
 python demo/demo_dpo.py
+> 注意：如果在demo目录下运行，需要修改py文件里的model等路径，或者在ide下配置 “python demo/demo_xx.py “脚本
 ```
 
 ## 模型下载链接
