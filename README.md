@@ -33,7 +33,7 @@ mini_qwen是以Qwen2.5-0.5B-Instruct模型为基础，通过扩充模型隐藏�
 - https://github.com/huggingface/trl/issues [TRL使用过程中各种问题]
 
 ## 快速开始
-本项目构建了mini_data(通过utils/save_mini_data.py)，也下载了模型配置文件，如果只是体验模型训练流程，不需要额外下载数据集和模型，仅需要下载本项目到本地，然后运行预训练(pt)、微调(sft)和直接偏好优化(dpo)的demo_xx.py代码即可。  
+本项目构建了mini_data(通过utils/save_mini_data.py)，也下载了模型配置文件(`ie. model description json w/o weights`)，如果只是体验模型训练流程，不需要额外下载数据集和模型(`ie. weights`)，仅需要下载本项目到本地，然后运行预训练(pt)、微调(sft)和直接偏好优化(dpo)的demo_xx.py代码即可。  
 **注意：请确保安装以下python包：**  
 **pip install flash-attn**  
 **pip install trl==0.11.4**  
