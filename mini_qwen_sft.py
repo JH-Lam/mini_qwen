@@ -51,9 +51,9 @@ def formatting_prompts_func(example):
     return output_texts
 
 
-# 数据整理器
+# 数据整理器 - note: prevent prompt below from being part of input
 response_template = "<|im_start|>assistant\n"
-response_template_ids = tokenizer.encode(response_template, add_special_tokens=False)[2:]
+response_template_ids = tokenizer.encode(response_template, add_special_tokens=False)[2:] # todo what
 collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, mlm=False)
 
 # 训练参数配置
