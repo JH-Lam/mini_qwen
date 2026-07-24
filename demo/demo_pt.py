@@ -11,39 +11,8 @@ from transformers import (
     Trainer,  # -so this Trainer is different from the one 'SFTTrainer' in trl lib(see @demo_sft.py )
     TrainingArguments,
 )
-# -- note: In the strict prompt template, there are 4 components involved: answer requests/回答要求, role background/角色背景，Question，CoT, Answer. (see details https://blog.csdn.net/sinat_14840559/article/details/145780216)
-
-'''
-a. 训练数据模板({}代表要填充数据）：
-下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
-    ### Instruction:
-    您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
-    
-    ### Question:
-    {}
-    
-    ### Response:
-    <think>
-    {}
-    </think>
-    {}
-
-b. 推理数据模板({}代表要填充数据）：
-下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
-
-### Instruction:
-您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
-
-### Question:
-{}
-
-### Response:
-<think>
--- 可见推理时由于的答案要生成，所以只给出单个<think>即可
-'''
 
 # >>>>>  Note: 如果要在demo目录／ide 下运行，需要修改文件中的model等路径; 或者在ide下配置 “python demo/demo_xx.py “执行脚本 <<<<<
-# todo >> the training data is not real CoT style(ie. not fit for template format)
 
 # 设置环境变量以优化CUDA内存分配
 # os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
@@ -52,19 +21,19 @@ b. 推理数据模板({}代表要填充数据）：
 output_path = "demo_results/pt"
 model_path = "models/Qwen2.5-0.5B-Instruct"
 config = AutoConfig.from_pretrained(model_path) #-so all 'model,tokenizer and config' can be loaded from model's path
-# 调整模型配置
-config.num_attention_heads = 16
-config.num_key_value_heads = 4
-config.hidden_size = 1024
-config.num_hidden_layers = 48
-# print(config) - todo: no significant speed changes if disable flash-atten 2; different model loading Class(eg. FastLanguage) will use different styles.
+# 调整模型配置 - same is as the one lied in root/min_qwen_pt.py; note this is 'AutoConfig' so it can load via `from_pretrained()`。see details https://blog.csdn.net/gitblog_01134/article/details/151024151
+config.num_attention_heads = 16 # 注意力头数量,影响并行计算能力；do only since the latter steps(eg. sft/dpo) will follow these configs which will save
+config.num_key_value_heads = 4 # Key-Value头数量，影响内存效率优化；note When num_key_value_heads is smaller, it adopts(改编） Grouped Query Attention, reducing the KV cache size by storing only the unique Key-Value pairs.
+config.hidden_size = 1024 # 隐藏层维度,　影响模型容量，参数量
+config.num_hidden_layers = 48 # Transformer层数，影响模型深度，计算复杂度
+# print(config)
+# todo: no significant speed changes if disable flash-atten 2; different model loading Class(eg. FastLanguage) will use different styles. ; note here uses `from_config()` to load model while sft/dpo uses `from_pretrained()`,that means Qwen(and GPT ..) follow the model standard of lib 'transformers'
 model = AutoModelForCausalLM.from_config(config, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
 tokenizer = AutoTokenizer.from_pretrained(model_path) # model path > config > model > tokenizer
 
 # # 计算参数量 - cost heavy
 # num_params = sum(p.numel() for p in model.parameters())
 # print(f"模型参数量: {num_params}") # 模型参数量: 998810624, about 1B
-
 
 def find_files(dirs):
     files = []
@@ -133,7 +102,7 @@ def preprocess_dataset(examples):
         k: list(chain(*tokenized_examples[k])) for k in tokenized_examples.keys() # - concatenate 2-d matrix(data, encodings) to 1-d list via keys - ie. reorganize the data by removing redudant properties
     }
     total_length = len(concatenated_examples[list(concatenated_examples.keys())[0]]) # - total amount of elements in input_ids & attention_mask are same ,so use the first one is enough
-    block_size = 128  # 分块大小 - is as final `batch_size`? 相当于重新调整长度统一为block size，因为原样本长度不一，不适合训练。后续再利用batch_size分页 in caller
+    block_size = 128  # 分块大小 - is as final `batch_size`? no,相当于重新调整长度统一为block size，因为原样本长度不一，不适合训练。后续再利用batch_size分页 in caller; note:different from 'sft/dpo','pt' procedure has no max_length like argument but block_size instead;  - it's 1024 in mini_qwen_pt.py file
     total_length = (total_length // block_size) * block_size  # 对齐块大小 - ie. no remainer(余数）divied by block_size
 
     result = {
@@ -145,9 +114,9 @@ def preprocess_dataset(examples):
 train_dataset = dataset.map(
     preprocess_dataset,
     batched=True,
-    batch_size=5000, #  vs @0604-1: this arg is used when do real batch samples latter in this function `dataset.map()`
+    batch_size=5000, #  vs @0604-1: this arg is used when do real batch samples latter in this function `dataset.map()`; Number of examples per batch provided to function if batched=True, batch_size <= 0 or batch_size == None then provide the full dataset as a single batch to function. － note: this arg is different from the 'per_device_train_batch_size' below, the former is a batch to do 'map()'  while the latter is used to build a real examples set to do train.
     remove_columns=dataset.column_names,
-    num_proc=16,
+    num_proc=16, # note: 如果想清楚知道送入 ‘preproces_dataset()‘中的参数包含的数据量，必须将此参数改为 num_proc=1。否则不同进程拆分数据集
 )
 
 # 数据整理器
@@ -161,8 +130,8 @@ training_args = TrainingArguments(
     warmup_ratio=0.1,
     lr_scheduler_type="cosine",
     num_train_epochs=1,
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=1,
+    per_device_train_batch_size=1, # - real batch size send to gpu/npu... device
+    gradient_accumulation_steps=1, # - 模拟加大 'per_device_train_batch_size' 效果，对于小显存来说可能有较好效果？
     save_steps=100_000,  # 保存中间模型
     save_total_limit=3,
     bf16=True,

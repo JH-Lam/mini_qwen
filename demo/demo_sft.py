@@ -5,6 +5,38 @@ from datasets import load_dataset, concatenate_datasets
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 
+# note >> the training data is not real CoT style(ie. not fit for template format)　？　Ｎo，事实上在常规方法中的 answer纳入到了ＣoT中了.
+# -- note: In the strict prompt template, there are 4 components involved: answer requests/回答要求, role background/角色背景，Question，CoT, Answer. (see details https://blog.csdn.net/sinat_14840559/article/details/145780216)
+
+'''
+a. 训练数据模板({}代表要填充数据）：
+下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
+    ### Instruction:
+    您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
+
+    ### Question:
+    {}
+
+    ### Response:
+    <think>
+    {}
+    </think>
+    {}
+
+b. 推理数据模板({}代表要填充数据）：
+下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
+
+### Instruction:
+您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
+
+### Question:
+{}
+
+### Response:
+<think>
+-- 可见推理时由于答案要生成，所以只给出单个<think>即可(is as generating new text with leading prompt)
+'''
+
 # 设置环境变量以优化CUDA内存分配
 # os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
@@ -66,7 +98,7 @@ training_args = SFTConfig(
     num_train_epochs=3, # -it's 1 in @demo_pt.py
     per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
-    save_strategy="epoch",  # 保存中间模型
+    save_strategy="epoch",  # 保存中间模型; - `"no"`: No logging is done during training. - `"epoch"`: Logging is done at the end of each epoch. - `"steps"`: Logging is done every `logging_steps`.
     save_total_limit=2,
     bf16=True,
     save_only_model=True,
@@ -80,9 +112,9 @@ trainer = SFTTrainer(
     args=training_args,
     formatting_func=formatting_prompts_func,
     data_collator=collator,
-    max_seq_length=128,
+    max_seq_length=128, # - Length of token sequences to return. is as 'max tokens to be used in embeddings'
     packing=False,
-    dataset_num_proc=16,
+    dataset_num_proc=16, # note：此值将影响 "送入　‘formatting_prompts_func()' 中的样本数量", 即数据集被拆分为多个进程处理
     dataset_batch_size=5000,
 )
 

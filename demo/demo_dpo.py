@@ -65,7 +65,7 @@ train_dataset = dataset.map(
     batched=True,
     batch_size=5000,
     remove_columns=dataset.column_names, # - Remove a selection of columns while doing the mapping. Columns will be removed before updating the examples with the output of function, i.e. if function is adding columns with names in remove_columns, these columns will be kept.
-    num_proc=16,
+    num_proc=16, # note：此值将影响送入　‘formatting_prompts_func()' 中的样本数量
 )
 
 # 训练参数配置
@@ -92,7 +92,7 @@ trainer = DPOTrainer(
     args=training_args,
     tokenizer=tokenizer,
     dataset_num_proc=16,
-    max_length=128,
+    max_length=128, # - The max_prompt_length is the maximum length of the prompt , the max_length is the maximum length of the prompt + chosen or rejected response. Those are used for tokenization, padding and trunctation.
     max_prompt_length=128,
 )
 
