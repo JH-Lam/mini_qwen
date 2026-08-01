@@ -91,13 +91,13 @@ dataset = dataset.shuffle(seed=42)
 #   2. EOS token will be appended automatically while using unsloth.apply_chat_template(dataset) to restructure dataset.
 def preprocess_dataset(examples):
     """预处理预训练数据集，将文本分词并分块 - '分块' is as `batch_size` #0604-1 ?no , do align each sample sie only. REMOVE `/home/leibnitz/.cache/huggingface/datasets` if it passbys breakpionts, that's what param 'cache_dir' in `lod_dataset()` to do !!
-     note: there's no labels in this dataset（other than 'sft/dpo'), maybe it's unnecessar for "pretrained training/PT" (because it learns patterns via autoregression?)
+     note: there's no labels in this dataset（other than 'sft/dpo'), maybe it's unnecessary for "pretrained training/PT" (because it learns patterns via autoregression? yes, ie. left shift 1 char to be as 'labels')
     """
     eos_token = "<|im_end|>" # - todo seems be different from the one in @Deepseek training project, that eos should inherit from qwen's training set
     text_examples = [text + eos_token for text in examples["text"]]  # 添加结束符 - via line by line; 可见即使前置 load_dataset()中指定‘text' property，在此处仍然需要以'text'为key来提取，可见load_dataset()对properties过滤作用而已
-    tokenized_examples = tokenizer(text_examples, add_special_tokens=False) # - convert to numeric ids
+    tokenized_examples = tokenizer(text_examples, add_special_tokens=False) # - convert to numeric ids(token ids)
 
-    # 将分词结果拼接并分块 - struture: {input_ids:[ [..],...], attention_mask: [ [..],..]} . ie. both are 2-d matrix respectively
+    # 将分词结果拼接并分块 - tokenized_examples struture: {input_ids:[ [..],...], attention_mask: [ [..],..]} . ie. both are 2-d matrix respectively
     concatenated_examples = {
         k: list(chain(*tokenized_examples[k])) for k in tokenized_examples.keys() # - concatenate 2-d matrix(data, encodings) to 1-d list via keys - ie. reorganize the data by removing redudant properties
     }
@@ -107,7 +107,7 @@ def preprocess_dataset(examples):
 
     result = {
         k: [t[i : i + block_size] for i in range(0, total_length, block_size)] for k, t in concatenated_examples.items()
-    }
+    } # -Aien: 这样拆分方法可能在一个block中存在０或多个eos token(s), why does it work? todo
     return result
 
 # 应用预处理函数

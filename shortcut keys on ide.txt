@@ -2,8 +2,8 @@
 ctrl+backspace: go back to last edit position
 ctrl+click ( or single F4): dive into implementation(source)
 Shift+Alt(option)+left: go back to last step
-Shift+Alt+right:go ahead to next step
-ctrol+F12: show current file structure
+Shift+Alt(option)+right:go ahead to next step
+ctrl+F12: show current file structure
 fn+left: go to line first
 fn+right:go to line end
 fn+up   :go to last page(current file)
