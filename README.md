@@ -2,6 +2,10 @@
 raw site: https://zhuanlan.zhihu.com/p/19353252686
 > clone from https://github.com/JH-Lam/mini_qwen forked from https://github.com/qiufengqijun/mini_qwen at Apr 24,26
 
+注意⚠️
+* 使用了trl包（而不是transformers）后，数据集不用调用tokenizer转换为token ids，也不用单独给出labels
+* 
+
 ## 目录
 - [简介](#简介)
 - [快速开始](#快速开始)
@@ -398,7 +402,7 @@ python mini_qwen_eval.py
 ## 结果分析与模型评估
 ### 预训练(pt)
 #### 结果分析
-预训练使用大约16B token的高质量中英文数据，训练了1epoch，总batch_size为1152，学习率为1e-4，使用6张H800，deepspeed采用zero-2，耗时约25h。具体训练日志见logs/output_pt.log。
+预训练使用大约16B token的高质量中英文数据，训练了1epoch，总batch_size为1152，学习率为1e-4，使用6张H800，deepspeed采用`zero-2`，耗时约25h。具体训练日志见logs/output_pt.log。
 
 | 参数名称                      | 值  |
 |------------------------------|-----|

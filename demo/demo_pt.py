@@ -95,7 +95,7 @@ train_dataset = dataset.map(
     num_proc=16,
 )
 
-# 数据整理器
+# 数据整理器 - 如果是 masked language modeling(mlm=True)，还会执行 masking 操作（如 BERT 训练方式）; 在自回归模型（如 GPT2 ）中，通常不做 mask，因此参数 mlm=False。
 collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
 # 训练参数配置
