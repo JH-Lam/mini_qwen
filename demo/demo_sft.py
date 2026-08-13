@@ -5,12 +5,44 @@ from datasets import load_dataset, concatenate_datasets
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 
+# note >> the training data is not real CoT style(ie. not fit for template format)　？　Ｎo，事实上在常规方法中的 answer纳入到了ＣoT中了.
+# -- note: In the strict prompt template, there are 4 components involved: answer requests/回答要求, role background/角色背景，Question，CoT, Answer. (see details https://blog.csdn.net/sinat_14840559/article/details/145780216)
+
+'''
+a. 训练数据模板({}代表要填充数据）：
+下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
+    ### Instruction:
+    您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
+
+    ### Question:
+    {}
+
+    ### Response:
+    <think>
+    {}
+    </think>
+    {}
+
+b. 推理数据模板({}代表要填充数据）：
+下面是一条描述任务的指令，与提供进一步上下文的输入配对。写一个适当完成请求的响应。在回答之前，仔细思考问题，并创建一个循序渐进的思路链，以确保逻辑和准确的回答。
+
+### Instruction:
+您是一位医学专家，在临床推理、诊断和治疗计划方面拥有先进的知识。请回答以下医学问题。
+
+### Question:
+{}
+
+### Response:
+<think>
+-- 可见推理时由于答案要生成，所以只给出单个<think>即可(is as generating new text with leading prompt)
+'''
+
 # 设置环境变量以优化CUDA内存分配
 # os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 # 加载分词器与模型
 output_path = "demo_results/sft"
-model_path = "demo_results/pt"
+model_path = "demo_results/pt" # - generated from demo_pt.py
 # - note this model can also be loaded from FastLanguageModel from unsloth lib(see @llm-practice also, which involves 'load_in_4bit' arguemnt too
 model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
 tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -29,29 +61,32 @@ def find_files(dirs):
 # 加载数据集并进行预处理
 directories = ["7M","Gen"]
 data_files = find_files(directories)
-dataset = load_dataset("parquet", data_files=data_files, split="train", columns=["conversations"]) # 只保留conversations字段
+dataset = load_dataset("parquet", data_files=data_files, split="train", columns=["conversations"]) # 只保留conversations字段（但事实上仍然会出现在结果中，相当于 filter）
 dataset = dataset.shuffle(seed=42)
 # dataset = dataset.shuffle(seed=42).select(range(20))
-# print(dataset[:3]);input()
+print(dataset[:2])
 
+# - act as arg passed into SFTTrainer; different the dataset-processor did in @deno_pt.py, here uses `gpt answer` as labels
+#  note: REMOVE `/home/leibnitz/.cache/huggingface/datasets` if it passbys breakpionts during debugs
 def formatting_prompts_func(example):
     output_texts = []
     for i in range(len(example["conversations"])):
-        for item in example["conversations"][i]:
+        for item in example["conversations"][i]:  # - the item 'gpt' always follows to item 'from'
             if item["from"] == "human":
                 human_text = item["value"]
             elif item["from"] == "gpt":
                 gpt_text = item["value"]
             else:
                 raise ValueError(f"Unknown sender: {item['from']}")
-        text = f"<|im_start|>user\n{human_text}<|im_end|>\n<|im_start|>assistant\n{gpt_text}<|im_end|>"
+        text = f"<|im_start|>user\n{human_text}<|im_end|>\n<|im_start|>assistant\n{gpt_text}<|im_end|>" #260609-1
         output_texts.append(text)
     return output_texts
 
-# 数据整理器
-response_template = "<|im_start|>assistant\n"
-response_template_ids = tokenizer.encode(response_template, add_special_tokens=False)[2:]
-collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, mlm=False)
+# 数据整理器 - note:different from the one in @demo_pt.py
+response_template = "<|im_start|>assistant\n" # - both Q&A are both in @260609-1, todo why it's one more template here
+response_template_ids = tokenizer.encode(response_template, add_special_tokens=False)[2:] # the template form that indicates the start of the response
+# - completion: is as 'response' style generation
+collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, mlm=False) # constant usage/固定用法； mlm – Whether or not to use masked language modeling in the underlying DataCollatorForLanguageModeling class. this option currently has no effect but is present for flexibility and backwards-compatibility.
 
 # 训练参数配置
 training_args = SFTConfig(
@@ -60,26 +95,26 @@ training_args = SFTConfig(
     learning_rate=1e-5,
     warmup_ratio=0.1,
     lr_scheduler_type="cosine",
-    num_train_epochs=3,
+    num_train_epochs=3, # -it's 1 in @demo_pt.py
     per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
-    save_strategy="epoch",  # 保存中间模型
-    save_total_limit=3,
+    save_strategy="epoch",  # 保存中间模型; - `"no"`: No logging is done during training. - `"epoch"`: Logging is done at the end of each epoch. - `"steps"`: Logging is done every `logging_steps`.
+    save_total_limit=2,
     bf16=True,
     save_only_model=True,
     logging_steps=1,
 )
 
-# 初始化Trainer
+# 初始化Trainer - note: uses trl's SFTTreainer instead of transformer.Trainer did in @demo_pt.py
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     args=training_args,
     formatting_func=formatting_prompts_func,
     data_collator=collator,
-    max_seq_length=128, # note this maybe affect the result of `formatting_prompts_func`, so you can filter out OR cut off the over-len text on that function
+    max_seq_length=128, # - Length of token sequences to return. is as 'max tokens to be used in embeddings'
     packing=False,
-    dataset_num_proc=16,
+    dataset_num_proc=16, # note：此值将影响 "送入　‘formatting_prompts_func()' 中的样本数量", 即数据集被拆分为多个进程处理
     dataset_batch_size=5000,
 )
 

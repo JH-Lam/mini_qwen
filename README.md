@@ -2,9 +2,9 @@
 raw site: https://zhuanlan.zhihu.com/p/19353252686
 > clone from https://github.com/JH-Lam/mini_qwen forked from https://github.com/qiufengqijun/mini_qwen at Apr 24,26
 
-注意⚠️
-* 使用了trl包（而不是transformers）后，数据集不用调用tokenizer转换为token ids，也不用单独给出labels
-* 
+#### python training frameworks used for config and model:
+- pt: transformers
+- sft/dpo: trl
 
 ## 目录
 - [简介](#简介)
@@ -54,6 +54,7 @@ cd mini_qwen
 python demo/demo_pt.py
 python demo/demo_sft.py
 python demo/demo_dpo.py
+> 注意：如果在demo目录下运行，需要修改py文件里的model等路径，或者在ide下配置 “python demo/demo_xx.py “脚本
 ```
 
 ## 模型下载链接
@@ -402,7 +403,7 @@ python mini_qwen_eval.py
 ## 结果分析与模型评估
 ### 预训练(pt)
 #### 结果分析
-预训练使用大约16B token的高质量中英文数据，训练了1epoch，总batch_size为1152，学习率为1e-4，使用6张H800，deepspeed采用`zero-2`，耗时约25h。具体训练日志见logs/output_pt.log。
+预训练使用大约16B token的高质量中英文数据，训练了1epoch，总batch_size为1152，学习率为1e-4，使用6张H800，deepspeed采用zero-2，耗时约25h。具体训练日志见logs/output_pt.log。
 
 | 参数名称                      | 值  |
 |------------------------------|-----|
