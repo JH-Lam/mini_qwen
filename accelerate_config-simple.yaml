@@ -1,0 +1,61 @@
+#-- case 1 machine w/ 1 gpus
+compute_environment: LOCAL_MACHINE
+# 运行环境类型，LOCAL_MACHINE表示在单机环境运行。
+# 多机器多节点时通常用 MULTI_MACHINE。
+
+distributed_type: DEEPSPEED
+# 分布式训练的框架，这里使用 DeepSpeed。
+
+machine_rank: 0
+# 当前机器的编号（rank），单机训练通常为0。
+# 多机器训练时，每台机器从0开始递增。
+
+num_machines: 1
+# 机器总数，单机训练为1，多机器训练设成对应机器数量。
+
+num_processes: 1
+# 该机器上启动的进程数，通常等于使用的GPU数量。
+
+gpu_ids: all
+# 可用GPU设备的ID，这里用all表示使用机器上所有可见GPU。
+# 也可以写成 "0,1" 指定使用GPU 0和1。
+
+mixed_precision: fp16
+# 是否开启混合精度训练，这里使用半精度（fp16），提升性能和减少显存占用，关闭的时候设为fp32 或者 no。
+
+use_cpu: false
+# 是否使用CPU进行训练，false表示使用GPU。
+
+main_training_function: main
+# 指定训练脚本中主训练函数的名字。
+
+deepspeed_config:
+  train_batch_size: 64
+  # DeepSpeed整体训练的批次大小（所有设备累计的batch_size）
+
+  gradient_accumulation_steps: 1
+  # 梯度累积步数，用于模拟更大batch size。
+
+  fp16:
+    enabled: true
+    # DeepSpeed开启fp16训练支持，关闭的半精度的时候记得关掉，设为false。
+
+  zero_optimization:
+    stage: 2
+    # ZeRO优化阶段，stage 2表示优化参数和梯度的分布式分割，节省显存。
+
+    offload_param:
+      device: cpu
+      # 是否将部分参数卸载到CPU，缓解GPU显存压力。
+
+  gradient_clipping: 1.0
+  # 梯度裁剪阈值，防止梯度爆炸。
+
+  steps_per_print: 100
+  # 每训练多少步打印一次日志。
+
+  zero_allow_untested_optimizer: true
+  # 允许使用未经过DeepSpeed官方测试的优化器。
+
+  wall_clock_breakdown: false
+  # 是否打印训练时间的详细统计信息，false表示关闭。
